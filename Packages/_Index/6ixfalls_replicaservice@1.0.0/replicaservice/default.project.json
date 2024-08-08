@@ -1,0 +1,12 @@
+{
+  "name": "replicaservice",
+  "tree": {
+    "$path": "src/client.lua",
+    "Server": {
+      "$path": "src/ServerScriptService"
+    },
+    "Shared": {
+      "$path": "src/ReplicatedStorage"
+    }
+  }
+}
