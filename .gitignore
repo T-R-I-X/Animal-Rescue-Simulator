@@ -3,7 +3,7 @@
 
 # Wally packages
 /Packages
-./wally.lock
+wally.lock
 
 # Roblox Studio lock files
 /*.rbxlx.lock
