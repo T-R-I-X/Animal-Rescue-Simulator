@@ -1,19 +1,10 @@
 -- Handles the loading of game data. Should be called on server startup.
 
-local ProfileService = require(game.ReplicatedStorage.Packages.ProfileService)
 local Net = require(game.ReplicatedStorage.Packages.Net)
 local Concur = require(game.ReplicatedStorage.Packages.Concur)
-local WaitFor = require(game.ReplicatedStorage.Packages.WaitFor)
-local Replica = require(game.ReplicatedStorage.Packages.ReplicaService)
 local Log = require(game.ReplicatedStorage.Shared.Logging).new("GameData")
 
-local MainData = require(script.Parent.Parent._Metadata.MainData)
-
-local _store = ProfileService.GetProfileStore("Game", MainData)
-
-local GameData: { Profiles: { [Player]: { profile: ProfileService.Profile<MainData.MainData, any>, update: (key:string, newValue:any) -> MainData.MainData, getKey: (key:string) -> any } } } = {
-	Profiles = {},
-}
+local GameData = {}
 do
 	function GameData.Init(): nil
 		Net:Handle("DataIsLoaded", function(player: Player)
@@ -65,16 +56,6 @@ do
 
 		return false, "Player isn't a player?"
 	end
-
-    function GameData.GetProfile(player: Player, timeout:number?): ProfileService.Profile<MainData.MainData, any> | nil
-        if player:IsA("Player") and player:IsDescendantOf(game.Players) then
-            WaitFor.Custom(function()
-                return GameData.Profiles[player]
-            end, timeout or 10):await()
-            return GameData.Profiles[player]
-        end
-        return nil
-    end
 end
 
 return GameData

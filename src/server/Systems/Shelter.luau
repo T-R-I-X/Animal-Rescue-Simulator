@@ -13,11 +13,13 @@ local PlayerOwned = {}
 PlayerOwned.Remotes = {}
 local Shelter = {}
 do
-	function Shelter.Init(): nil
-        Net:RemoteEvent("PickShelter")
-        Net:RemoteEvent("LoadingShelter")
-        Net:RemoteEvent("ShelterLoaded")
+    Shelter.Remotes = {
+        PickShelter    = Net:RemoteEvent("PickShelter"),
+        LoadingShelter = Net:RemoteEvent("LoadingShelter"),
+        ShelterLoaded  = Net:RemoteEvent("ShelterLoaded")
+    }
 
+	function Shelter.Init(): nil
         local all = {}
         for _, p in ipairs(game.Players:GetPlayers()) do
             table.insert(all, Concur.spawn(Shelter.PlayerJoined, p))
@@ -46,7 +48,7 @@ do
         local shelter = result.Data.facility
 
         if shelter == nil then
-            Net:RemoteEvent("PickShelter"):FireClient(player)
+            Shelter.Remotes.PickShelter:FireClient(player)
             return false, "shelter not picked"
         end
 
@@ -57,7 +59,7 @@ do
                 PlayerOwned[player] = shelterModel
                 newShelter = shelterModel
 
-                Net:Re
+                Shelter.Remotes.ShelterLoaded:FireClient(player)
 
                 player.Character.PrimaryPart:PivotTo(shelterModel.PrimaryPart.CFrame) -- shelterModel.PrimaryPart.CFrame
                 break
