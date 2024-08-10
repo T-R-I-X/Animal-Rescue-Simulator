@@ -1,6 +1,10 @@
 # Project place file
 /Animal-Rescue-Simulator.rbxlx
 
+# Wally packages
+/Packages
+./wally.lock
+
 # Roblox Studio lock files
 /*.rbxlx.lock
 /*.rbxl.lock
