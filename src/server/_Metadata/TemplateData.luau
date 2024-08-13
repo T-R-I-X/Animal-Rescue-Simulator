@@ -1,4 +1,4 @@
-export type MainData = {
+export type Main = {
 	coins: number,
 	xp: number,
 	tools: { string },
@@ -17,6 +17,7 @@ export type MainData = {
 	quests: { { questType: string, amount: number, tracked: boolean } },
 
 	facility: {
+		typeof: number,
 		upgrades: { number },
 		petsIncubating: { { id: number, rarity: number, progress: number } },
 		staff: { { name: string, level: number } },
@@ -30,7 +31,7 @@ export type MainData = {
 	},
 }
 
-local MainData: MainData = {
+local TemplateData: Main = {
 	coins = 0,
 	xp = 0,
 	tools = {},
@@ -41,4 +42,4 @@ local MainData: MainData = {
 	facility = {},
 }
 
-return MainData
+return TemplateData

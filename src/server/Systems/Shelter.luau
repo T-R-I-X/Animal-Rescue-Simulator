@@ -1,11 +1,15 @@
--- Handles the animal shelters. Should be called on server startup.
+--!strict
+-- // Systems Shelter .luau
+--- // Handles animal shelters on server
 
-local Net = require(game.ReplicatedStorage.Packages.Net)
-local Concur = require(game.ReplicatedStorage.Packages.Concur)
-local Log = require(game.ReplicatedStorage.Shared.Logging).new("GameData")
-local WaitFor = require(game.ReplicatedStorage.Packages.WaitFor)
+local Players = game:GetService("Players")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
-local GameData = require(script.Parent.GameData)
+local Net = require(ReplicatedStorage.Packages.Net)
+local Concur = require(ReplicatedStorage.Packages.Concur)
+local Log = require(ReplicatedStorage.Shared.Logging).new("Shelter")
+local WaitFor = require(ReplicatedStorage.Packages.WaitFor)
+local Datastore = require(script.Parent.Parent.Lib.Datastore)
 
 local shelterFolder = workspace.Shelters
 
@@ -13,21 +17,21 @@ local PlayerOwned = {}
 PlayerOwned.Remotes = {}
 local Shelter = {}
 do
-    Shelter.Remotes = {
-        PickShelter    = Net:RemoteEvent("PickShelter"),
-        LoadingShelter = Net:RemoteEvent("LoadingShelter"),
-        ShelterLoaded  = Net:RemoteEvent("ShelterLoaded")
-    }
+	Shelter.Remotes = {
+		PickShelter = Net:RemoteEvent("PickShelter"),
+		LoadingShelter = Net:RemoteEvent("LoadingShelter"),
+		ShelterLoaded = Net:RemoteEvent("ShelterLoaded"),
+	}
 
 	function Shelter.Init(): nil
-        local all = {}
-        for _, p in ipairs(game.Players:GetPlayers()) do
-            table.insert(all, Concur.spawn(Shelter.PlayerJoined, p))
-        end
-        Concur.all(all)
+		local all = {}
+		for _, p in ipairs(game.Players:GetPlayers()) do
+			table.insert(all, Concur.spawn(Shelter.PlayerJoined, p))
+		end
+		Concur.all(all)
 
-        game.Players.PlayerAdded:Connect(Shelter.PlayerJoined)
-        game.Players.PlayerRemoving:Connect(Shelter.PlayerLeft)
+		Players.PlayerAdded:Connect(Shelter.PlayerJoined)
+		Players.PlayerRemoving:Connect(Shelter.PlayerLeft)
 	end
 
 	function Shelter.PlayerJoined(player: Player): nil
@@ -42,54 +46,58 @@ do
 	end
 
 	function Shelter.LoadShelter(player: Player): (boolean, string | nil)
-        local result = GameData.GetProfile(player)
-        if result == nil then return false, "profile not found" end
+		local result = Datastore.get(player, 25)
+		if result == nil then
+			return false, "profile not found"
+		end
 
-        local shelter = result.Data.facility
+        result = result.get()
 
-        if shelter == nil then
-            Shelter.Remotes.PickShelter:FireClient(player)
-            return false, "shelter not picked"
-        end
+		local shelter = result.facility
 
-        local newShelter
-        for _, shelterModel in ipairs(shelterFolder:GetChildren()) do
-            if shelterModel:GetAttribute("Owner") == nil then
-                shelterModel:SetAttribute("Owner", player.UserId)
-                PlayerOwned[player] = shelterModel
-                newShelter = shelterModel
+		if shelter == nil then
+			Shelter.Remotes.PickShelter:FireClient(player)
+			return false, "shelter not picked"
+		end
 
-                Shelter.Remotes.ShelterLoaded:FireClient(player)
+		local newShelter
+		for _, shelterModel in ipairs(shelterFolder:GetChildren()) do
+			if shelterModel:GetAttribute("Owner") == nil then
+				shelterModel:SetAttribute("Owner", player.UserId)
+				PlayerOwned[player] = shelterModel
+				newShelter = shelterModel
 
-                player.Character.PrimaryPart:PivotTo(shelterModel.PrimaryPart.CFrame) -- shelterModel.PrimaryPart.CFrame
-                break
-            end
-        end
+				Shelter.Remotes.ShelterLoaded:FireClient(player)
 
-        if newShelter then
-            return true, "shelter loaded"
-        else
-		    return false, "couldn't find a new shelter"
-        end
+				player.Character.PrimaryPart:PivotTo(shelterModel.PrimaryPart.CFrame) -- shelterModel.PrimaryPart.CFrame
+				break
+			end
+		end
+
+		if newShelter then
+			return true, "shelter loaded"
+		else
+			return false, "couldn't find a new shelter"
+		end
 	end
 
-    function Shelter.PlayerLeft(player: Player): nil
-        if PlayerOwned[player] then
-            PlayerOwned[player]:SetAttribute("Owner", nil)
-            PlayerOwned[player] = nil
-        end
-    end
+	function Shelter.PlayerLeft(player: Player): nil
+		if PlayerOwned[player] then
+			PlayerOwned[player]:SetAttribute("Owner", nil)
+			PlayerOwned[player] = nil
+		end
+	end
 
-    function Shelter.GetPlayerShelter(player: Player): (Model | nil)
-        return PlayerOwned[player]
-    end
+	function Shelter.GetPlayerShelter(player: Player): Model | nil
+		return PlayerOwned[player]
+	end
 
-    function Shelter.WaitForPlayerShelter(player: Player, timeout: number | nil): Model
-        WaitFor.Custom(function()
-            return GameData.Profiles[player]
-        end, timeout or 10):await()
-        return GameData.Profiles[player]
-    end
+	function Shelter.WaitForPlayerShelter(player: Player, timeout: number | nil): Model
+		WaitFor.Custom(function()
+			return GameData.Profiles[player]
+		end, timeout or 10):await()
+		return GameData.Profiles[player]
+	end
 end
 
 return Shelter
