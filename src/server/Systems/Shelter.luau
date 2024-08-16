@@ -14,67 +14,59 @@ local Datastore = require(script.Parent.Parent.Lib.Datastore)
 local shelterFolder = workspace.Shelters
 
 local PlayerOwned = {}
-PlayerOwned.Remotes = {}
+PlayerOwned.Shelters = {}
+
 local Shelter = {}
 do
 	Shelter.Remotes = {
-		PickShelter = Net:RemoteEvent("PickShelter"),
+		PromptColorAndStyle = Net:RemoteEvent("PickColorAndStyle"),
 		LoadingShelter = Net:RemoteEvent("LoadingShelter"),
 		ShelterLoaded = Net:RemoteEvent("ShelterLoaded"),
 	}
 
 	function Shelter.Init(): nil
-		local all = {}
-		for _, p in ipairs(game.Players:GetPlayers()) do
-			table.insert(all, Concur.spawn(Shelter.PlayerJoined, p))
-		end
-		Concur.all(all)
-
-		Players.PlayerAdded:Connect(Shelter.PlayerJoined)
 		Players.PlayerRemoving:Connect(Shelter.PlayerLeft)
+		Net:Handle("SelectedShelter", function(player, shelter)
+			assert(shelter and type(shelter) == "number", "shelter was incorrect")
+			local success, result = Shelter.LoadShelter(player, shelter)
+
+			if success then
+				Log:Log("loaded shelter for " .. player.Name)
+			else
+				Log:Debug("error shelter: " .. player.Name .. "( @" .. player.DisplayName .. " ) " .. result)
+			end
+
+            return success, result
+		end)
 	end
 
-	function Shelter.PlayerJoined(player: Player): nil
-		local success, result = Shelter.LoadShelter(player)
-
-		if success then
-			Log:Log("loaded shelter for " .. player.Name)
-		else
-			Log:Debug("error shelter: " .. player.Name .. "( @" .. player.DisplayName .. " )" .. result)
-			player:Kick("Error loading shelter: " .. result)
-		end
-	end
-
-	function Shelter.LoadShelter(player: Player): (boolean, string | nil)
+	function Shelter.LoadShelter(player: Player, shelterName: number): (boolean, string | nil)
 		local result = Datastore.get(player, 25)
-		if result == nil then
+		if not result then
 			return false, "profile not found"
 		end
 
-        result = result.get()
+		result = result.get()
 
+		local shelterModel = shelterFolder:FindFirstChild(tostring(shelterName))
+		if not shelterModel then
+			return false, "shelter not found in workspace"
+		end
 		local shelter = result.facility
 
-		if shelter == nil then
-			Shelter.Remotes.PickShelter:FireClient(player)
-			return false, "shelter not picked"
+		if shelter.resources == nil then
+			Shelter.Remotes.PromptColorAndStyle:FireClient(player)
+			return false, "shelter hasn't been initialized"
 		end
 
-		local newShelter
-		for _, shelterModel in ipairs(shelterFolder:GetChildren()) do
-			if shelterModel:GetAttribute("Owner") == nil then
-				shelterModel:SetAttribute("Owner", player.UserId)
-				PlayerOwned[player] = shelterModel
-				newShelter = shelterModel
+		if shelterModel:GetAttribute("Owner") == nil then
+			shelterModel:SetAttribute("Owner", player.UserId)
+			PlayerOwned.Shelters[player] = shelterModel
 
-				Shelter.Remotes.ShelterLoaded:FireClient(player)
+			Shelter.Remotes.ShelterLoaded:FireClient(player)
 
-				player.Character.PrimaryPart:PivotTo(shelterModel.PrimaryPart.CFrame) -- shelterModel.PrimaryPart.CFrame
-				break
-			end
-		end
+			player.Character.PrimaryPart:PivotTo(shelterModel.PrimaryPart.CFrame) -- shelterModel.PrimaryPart.CFrame
 
-		if newShelter then
 			return true, "shelter loaded"
 		else
 			return false, "couldn't find a new shelter"
@@ -82,21 +74,21 @@ do
 	end
 
 	function Shelter.PlayerLeft(player: Player): nil
-		if PlayerOwned[player] then
-			PlayerOwned[player]:SetAttribute("Owner", nil)
-			PlayerOwned[player] = nil
+		if PlayerOwned.Shelters[player] then
+			PlayerOwned.Shelters[player]:SetAttribute("Owner", nil)
+			PlayerOwned.Shelters[player] = nil
 		end
 	end
 
 	function Shelter.GetPlayerShelter(player: Player): Model | nil
-		return PlayerOwned[player]
+		return PlayerOwned.Shelters[player]
 	end
 
 	function Shelter.WaitForPlayerShelter(player: Player, timeout: number | nil): Model
 		WaitFor.Custom(function()
-			return GameData.Profiles[player]
+			return PlayerOwned.Shelters[player]
 		end, timeout or 10):await()
-		return GameData.Profiles[player]
+		return PlayerOwned.Shelters[player]
 	end
 end
 

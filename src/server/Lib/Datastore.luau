@@ -17,15 +17,11 @@ export type CacheProfile = {
 	get: () -> TemplateData.Main,
 }
 export type ProfileTable = {
-	[Player]: {
-		profile: Profile,
-		update: (key: string, newValue: any) -> TemplateData.Main,
-		getKey: (key: string) -> any,
-	},
+	[Player]: CacheProfile,
 }
 
 local Datastore = {}
-Datastore.mock = false
+Datastore.mock = true
 Datastore._store = ProfileService.GetProfileStore("Game", TemplateData)
 
 local Profiles: ProfileTable = {}
@@ -40,15 +36,15 @@ local function update(
 	if doesKeyExist then
 		profile.Data[key] = value
 	else
-		error(`Key doesn't exist in # {profile.UserIds[1]} KEY {key}`)
+		error(`Key doesn't exist in <{profile.UserIds[1]}> KEY {key}`)
 	end
 end
 
 local function set(player: Player, profile: Profile): nil
 	local cached = Profiles[player]
 	if cached then
-		error("", 2)
-	end
+        error(`{player.Name} <{player.UserId}> is already cached in profiles`)
+    end
 	Profiles[player] = {
 		profile = profile,
 		update = function(key: string, value: any): TemplateData.Main
@@ -73,7 +69,7 @@ function Datastore.load(player: Player): CacheProfile | nil
 		return
 	end
 	local profileStore = if Datastore.mock == true then Datastore._store.Mock else Datastore._store
-	local profile: Profile = profileStore:PromiseLoadProfile(`GamePlayer#{player.UserId}`):await()
+	local profile: Profile = profileStore:LoadProfileAsync(`GamePlayer#{player.UserId}`)
 	if profile ~= nil then
 		profile:AddUserId(player.UserId)
 		profile:Reconcile()
@@ -81,7 +77,7 @@ function Datastore.load(player: Player): CacheProfile | nil
 			if Profiles[player] then
 				Profiles[player] = nil
 			end
-			player:Kick(`profile released ${placeId} #{jobId}`)
+			player:Kick(`profile released <{placeId}> <{jobId}>`)
 		end)
 
 		if player:IsDescendantOf(Players) then
@@ -101,7 +97,7 @@ ProfileService.IssueSignal:Connect(function(message: string, storeName: string, 
 	if tonumber(newKey) then
 		local player = Players:GetPlayerByUserId(newKey)
 		AnalyticsService:LogCustomEvent(player, "ProfileServiceIssue", 1, {
-			UserId = `{player.UserId}`,
+			UserId = `<{player.UserId}>`,
 			Message = message,
 			StoreName = storeName,
 			Key = key,

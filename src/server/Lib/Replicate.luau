@@ -13,7 +13,6 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local Net = require(ReplicatedStorage.Packages.Net)
 local Concur = require(ReplicatedStorage.Packages.Concur)
-local Log = require(ReplicatedStorage.Shared.Logging).new("Replicate")
 
 --
 local UpdateValue = Net:RemoteEvent("UpdateReplicated")
@@ -23,9 +22,8 @@ Net:Handle("GetInitialValue", function(player: Player, token: string | nil)
 	if not player:IsDescendantOf(Players) then
 		return
 	end
-	if cache then
-		Log:Fatal(`{token} does not exist in REPLICATEDTOKENS`)
-		return
+	if not cache then
+		error(`{token} does not exist in REPLICATEDTOKENS`)
 	end
 	return cache:GetValue()
 end)
@@ -47,7 +45,7 @@ task.spawn(function()
 						if queuePlayer:IsA("Player") and queuePlayer:IsDescendantOf(Players) then
 							UpdateValue:FireClient(queuePlayer, queued.Value)
 						else
-							Log:Warn(`queue dropped for USER`)
+							warn(`queue dropped for USER`)
 						end
 					else
 						UpdateValue:FireAllClients(queued.Value)
@@ -56,7 +54,7 @@ task.spawn(function()
 			)
 		end
 
-		Log:Debug(`updated queue for #{#tasks}`)
+		print(`DEBUG updated queue for #{#tasks}`)
 		Concur.all(tasks)
 		task.wait()
 	end
