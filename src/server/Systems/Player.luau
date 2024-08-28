@@ -13,8 +13,18 @@ local Log = require(ReplicatedStorage.Shared.Logging).new("GameData")
 local GameData = {}
 do
 	function GameData.Init(): nil
-		Net:Handle("DataIsLoaded", function(player: Player)
-			return
+		Net:Handle("StartNewGame", function(player)
+			local result = Datastore.get(player, 25)
+			if result then
+				local data = result.get()
+				if data.initialized == true then
+					return true, "wiped data."
+				else
+					return false, "can't start new game."
+				end
+			else
+				return false, "couldn't get game data."
+			end
 		end)
 
 		local all = {}
@@ -31,17 +41,6 @@ do
 		end)
 
 		Players.PlayerAdded:Connect(Datastore.load)
-	end
-
-	function GameData.PlayerJoined(player: Player)
-		local success, result = GameData.LoadPlayer(player)
-
-		if success then
-			Log:Log("loaded data for " .. player.Name)
-		else
-			Log:Debug("error loading data: " .. player.Name .. "( @" .. player.DisplayName .. " )" .. result)
-			player:Kick("Error loading data: " .. result)
-		end
 	end
 end
 

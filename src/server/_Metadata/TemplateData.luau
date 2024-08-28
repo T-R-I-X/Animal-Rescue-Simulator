@@ -29,6 +29,16 @@ export type Main = {
 		mainColor: Color3,
 		secondaryColor: Color3,
 	},
+
+	settings: {
+		sfxEnabled: boolean,
+		musicEnabled: boolean,
+
+		sfxVolume: number,
+		musicVolume: number,
+	},
+
+	initialized: boolean,
 }
 
 local TemplateData: Main = {
@@ -40,6 +50,14 @@ local TemplateData: Main = {
 	quests = {},
 
 	facility = {},
+	settings = {
+		sfxEnabled = true,
+		musicEnabled = true,
+
+		sfxVolume = 0.5,
+		musicVolume = 0.45,
+	},
+	initialized = false
 }
 
 return TemplateData

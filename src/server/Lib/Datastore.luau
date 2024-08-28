@@ -7,20 +7,26 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local AnalyticsService = game:GetService("AnalyticsService")
 
 local ProfileService = require(ReplicatedStorage.Packages.ProfileService)
+local Replica = require(ReplicatedStorage.Shared.Replica)
 local WaitFor = require(ReplicatedStorage.Packages.WaitFor)
 local TemplateData = require(script.Parent.Parent._Metadata.TemplateData)
+
+local SharedReplicaTypes = require(ReplicatedStorage.Shared.Replica.SharedTypes)
 
 export type Profile = ProfileService.Profile<TemplateData.Main, any>
 export type CacheProfile = {
 	profile: Profile,
+	replica: SharedReplicaTypes.Replica,
 	update: (key: string, value: any) -> TemplateData.Main,
 	get: () -> TemplateData.Main,
+	wipe: () -> nil
 }
 export type ProfileTable = {
 	[Player]: CacheProfile,
 }
 
 local Datastore = {}
+Datastore.activeWipe = {}
 Datastore.mock = true
 Datastore._store = ProfileService.GetProfileStore("Game", TemplateData)
 
@@ -28,16 +34,46 @@ local Profiles: ProfileTable = {}
 
 local function update(
 	profile: Profile,
+	replica: SharedReplicaTypes.Replica,
 	key: string,
 	value: number | string | { [any]: any } | { any } | Color3
 ): TemplateData.Main
-	assert(profile and (key and type(key) == "string"), "Missing required arguments")
+	assert(profile and (key and typeof(key) == "string"), "Missing required arguments")
 	local doesKeyExist = profile.Data[key]
 	if doesKeyExist then
 		profile.Data[key] = value
+		replica:SetValue(key, value)
 	else
 		error(`Key doesn't exist in <{profile.UserIds[1]}> KEY {key}`)
 	end
+end
+
+local function wipe(player: Player, profile: Profile): nil
+	Datastore.activeWipe[player] = true
+	profile:Release()
+
+	local success, err = pcall(function()
+		return profile:WipeProfileAsync()
+	end)
+
+	if success == true then
+		warn(`SUCCESS wipe for PLAYER {player.UserId}`)
+		AnalyticsService:LogCustomEvent(player, "DataWipe", {
+			UserId = `<{player.UserId}>`,
+			Status = "SUCCESS",
+			Message = "",
+		})
+	else
+		warn(`FAILED wipe for PLAYER {player.UserId}`)
+		AnalyticsService:LogCustomEvent(player, "DataWipe", {
+			UserId = `<{player.UserId}>`,
+			Status = "FAILED",
+			Message = err,
+		})
+		player:Kick("Failed to wipe profile data.")
+	end
+
+	Datastore.activeWipe[player] = nil
 end
 
 local function set(player: Player, profile: Profile): nil
@@ -45,8 +81,16 @@ local function set(player: Player, profile: Profile): nil
 	if cached then
         error(`{player.Name} <{player.UserId}> is already cached in profiles`)
     end
+
+	local newReplica = Replica.new({
+		ClassToken = `Data_{player.UserId}`,
+    	Data = profile.Data,
+    	Replication = { player },
+	})
+
 	Profiles[player] = {
 		profile = profile,
+		replica = newReplica,
 		update = function(key: string, value: any): TemplateData.Main
 			return update(profile, key, value)
 		end,

@@ -8,6 +8,7 @@ local CollectionService = game:GetService("CollectionService")
 local TweenService = game:GetService("TweenService")
 
 local Trove = require(ReplicatedStorage.Packages.Trove)
+local Sounds = require(script.Parent.Sounds)
 
 local player = Players.LocalPlayer
 local mouse = player:GetMouse()
@@ -27,6 +28,10 @@ Effects.Tags = {
 		object.AutoButtonColor = false
 
 		newTrove:Add(object.Activated:Connect(function()
+			if not CollectionService:HasTag(object, "ButtonClick") then
+				Sounds.play("MouseClick")
+			end
+
 			local mouseX, mouseY = mouse.X, mouse.Y
 			local rippleImage = Instance.new("ImageLabel")
 			rippleImage.AnchorPoint = Vector2.new(0.5, 0.5)
@@ -60,26 +65,25 @@ Effects.Tags = {
 		object.AutoButtonColor = false
 
 		newTrove:Add(object.MouseEnter:Connect(function()
-			local tween = TweenService:Create(
-				object,
-				TweenInfo.new(0.1, Enum.EasingStyle.Linear, Enum.EasingDirection.Out),
-				{
-                    Size = original + UDim2.fromScale(0.005, 0.005)
-                }
-			)
-            tween:Play()
+			Sounds.play("MouseHover")
+
+			local tween =
+				TweenService:Create(object, TweenInfo.new(0.1, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
+					Size = original + UDim2.fromScale(0.005, 0.005),
+				})
+			tween:Play()
 		end))
-        newTrove:Add(object.MouseLeave:Connect(function()
-            local tween = TweenService:Create(
+		newTrove:Add(object.MouseLeave:Connect(function()
+			local tween = TweenService:Create(
 				object,
 				TweenInfo.new(0.1, Enum.EasingStyle.Linear, Enum.EasingDirection.Out),
 				{ Size = original }
 			)
-            tween:Play()
-        end))
+			tween:Play()
+		end))
 	end,
 	ButtonClick = function(object: ImageButton | TextButton)
-        if not Effects.Troves["ButtonClick"] then
+		if not Effects.Troves["ButtonClick"] then
 			Effects.Troves.ButtonClick = {}
 		end
 
@@ -90,16 +94,18 @@ Effects.Tags = {
 		object.AutoButtonColor = false
 
 		newTrove:Add(object.Activated:Connect(function()
+			Sounds.play("MouseClick")
+
 			local tween = TweenService:Create(
 				object,
 				TweenInfo.new(0.1, Enum.EasingStyle.Linear, Enum.EasingDirection.In, 0, true),
 				{
-                    Size = original - UDim2.fromScale(0.005, 0.005)
-                }
+					Size = original - UDim2.fromScale(0.005, 0.005),
+				}
 			)
-            tween:Play()
+			tween:Play()
 		end))
-    end,
+	end,
 	ButtonParticles = function(object: ImageButton | TextButton) end,
 }
 

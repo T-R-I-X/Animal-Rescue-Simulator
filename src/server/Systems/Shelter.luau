@@ -19,15 +19,45 @@ PlayerOwned.Shelters = {}
 local Shelter = {}
 do
 	Shelter.Remotes = {
-		PromptColorAndStyle = Net:RemoteEvent("PickColorAndStyle"),
-		LoadingShelter = Net:RemoteEvent("LoadingShelter"),
-		ShelterLoaded = Net:RemoteEvent("ShelterLoaded"),
+		PromptInitialize = Net:RemoteEvent("PromptInitialize"),
+		SelectedShelter = Net:RemoteFunction("SelectedShelter"),
+		UpdateShelter = Net:RemoteFunction("UpdateShelter"),
 	}
 
 	function Shelter.Init(): nil
 		Players.PlayerRemoving:Connect(Shelter.PlayerLeft)
-		Net:Handle("SelectedShelter", function(player, shelter)
-			assert(shelter and type(shelter) == "number", "shelter was incorrect")
+
+		Shelter.Remotes.UpdateShelter.OnServerInvoke = function(player, shelterType, primaryColor, secondaryColor)
+			local success, msg = pcall(function()
+				assert(player and player:IsDescendantOf(Players), "PARAM player was not in the game.")
+				assert(shelterType and typeof(shelterType) == "number", "PARAM shelterType was not a NUMBER.")
+				assert(primaryColor and typeof(primaryColor) == "Color3", "PARAM primaryColor was not a COLOR3.")
+				assert(secondaryColor and typeof(secondaryColor) == "Color3", "PARAM secondaryColor was not a COLOR3.")
+
+				local result = Datastore.get(player, 25)
+				if not result then
+					return false, "game data not found."
+				end
+
+				local data = result.get()
+				print(data.initialized)
+				assert(data.initialized == false, "facility already initialized, wipe player data first!") -- check if they are initialized TODO add gamepass check for customization
+
+				local newTable = data.facility
+				newTable.mainColor = primaryColor
+				newTable.secondaryColor = secondaryColor
+				newTable.typeof = shelterType
+
+				result.update("facility", newTable)
+				result.update("initialized", true)
+				return true, "updated facility."
+			end)
+
+			return success, msg
+		end
+
+		Shelter.Remotes.SelectedShelter.OnServerInvoke = function(player, shelter)
+			assert(shelter and type(shelter) == "number", "PARAM shelter was not a number.")
 			local success, result = Shelter.LoadShelter(player, shelter)
 
 			if success then
@@ -36,27 +66,42 @@ do
 				Log:Debug("error shelter: " .. player.Name .. "( @" .. player.DisplayName .. " ) " .. result)
 			end
 
-            return success, result
-		end)
+			return success, result
+		end
 	end
 
-	function Shelter.LoadShelter(player: Player, shelterName: number): (boolean, string | nil)
+	function Shelter.LoadShelter(player: Player, spot: number): (boolean, string | nil)
 		local result = Datastore.get(player, 25)
 		if not result then
-			return false, "profile not found"
+			return false, "game data not found."
 		end
 
 		result = result.get()
 
-		local shelterModel = shelterFolder:FindFirstChild(tostring(shelterName))
+		local shelterModel = shelterFolder:FindFirstChild(tostring(spot))
 		if not shelterModel then
-			return false, "shelter not found in workspace"
+			return false, "shelter not found in workspace."
 		end
-		local shelter = result.facility
 
-		if shelter.resources == nil then
-			Shelter.Remotes.PromptColorAndStyle:FireClient(player)
-			return false, "shelter hasn't been initialized"
+		--facility: {
+		--	typeof: number,
+		--	upgrades: { number },
+		--	petsIncubating: { { id: number, rarity: number, progress: number } },
+		--	staff: { { name: string, level: number } },
+		--	resources: {
+		--		food: number,
+		--		water: number,
+		--		medicine: number,
+		--	},
+		--	mainColor: Color3,
+		--	secondaryColor: Color3,
+		--},
+
+		local facilityData = result.facility
+
+		if result.initialized == nil then
+			Shelter.Remotes.PromptInitialize:FireClient(player)
+			return false, "shelter hasn't been initialized."
 		end
 
 		if shelterModel:GetAttribute("Owner") == nil then
@@ -67,9 +112,9 @@ do
 
 			player.Character.PrimaryPart:PivotTo(shelterModel.PrimaryPart.CFrame) -- shelterModel.PrimaryPart.CFrame
 
-			return true, "shelter loaded"
+			return true, "shelter was loaded."
 		else
-			return false, "couldn't find a new shelter"
+			return false, "couldn't select this shelter."
 		end
 	end
 
