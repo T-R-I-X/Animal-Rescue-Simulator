@@ -1,3 +1,6 @@
+-- // Gui ShelterSelector.luau
+--- // Handles the selecting of your shelter spot
+
 local ShelterSelector = {}
 
 local Players = game:GetService("Players")
@@ -95,6 +98,7 @@ end
 function ShelterSelector.destroy()
 	ShelterSelector.frame.Visible = false
 	currentTrove:Clean()
+	currentCamera.CameraType = Enum.CameraType.Custom
 end
 
 return ShelterSelector

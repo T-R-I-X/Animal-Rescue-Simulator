@@ -8,7 +8,6 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Datastore = require(script.Parent.Parent.Lib.Datastore)
 local Net = require(ReplicatedStorage.Packages.Net)
 local Concur = require(ReplicatedStorage.Packages.Concur)
-local Log = require(ReplicatedStorage.Shared.Logging).new("GameData")
 
 local GameData = {}
 do
@@ -36,9 +35,7 @@ do
 				end, p)
 			)
 		end
-		Concur.all(all):OnCompleted(function()
-			Log:Log(#all .. " preloaded")
-		end)
+		Concur.all(all)
 
 		Players.PlayerAdded:Connect(Datastore.load)
 	end

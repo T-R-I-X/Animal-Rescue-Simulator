@@ -1,3 +1,6 @@
+-- // Gui ShelterCustomize.luau
+--- // Handles the customize ui for shelter
+
 local ShelterCustomize = {}
 
 local Players = game:GetService("Players")
@@ -17,7 +20,11 @@ local currentTrove = Trove.new()
 
 local shelterGui = playerGui:WaitForChild("Shelter")
 local container = shelterGui:WaitForChild("Container")
+local selector = container:WaitForChild("LocationSelector")
+
 ShelterCustomize.frame = container:WaitForChild("Customize")
+
+local shelterModel
 
 local confirmBtn = ShelterCustomize.frame:WaitForChild("Confirm") :: TextButton
 local nextBtn = ShelterCustomize.frame:WaitForChild("Next") :: TextButton
@@ -75,7 +82,7 @@ function ShelterCustomize.render()
 	local shelterStyle = 1
 	local currentRot = 0
 	local maxShelterStyle = #shelterModelFolder:GetChildren()
-	local shelterModel
+
 	local isPrimary = true
 	local holdingColor = false
 	local holdingSlider = false
@@ -86,10 +93,11 @@ function ShelterCustomize.render()
 	wheelContainer:SetAttribute("SecondarySlider", UDim2.fromScale(0.5, 0.087))
 
 	currentTrove:Add(confirmBtn.Activated:Connect(function()
-		local success, msg = Net:Fire("UpdateShelter"):InvokeServer(shelterStyle, primaryColor, secondaryColor)
+		local success, msg = Net:RemoteFunction("UpdateShelter")
+			:InvokeServer(shelterStyle, primaryColor, secondaryColor)
 		if success then
-			ShelterCustomize.frame.Visible = false
-			ShelterCustomize.frame.Visible = true
+			ShelterCustomize.frame:SetAttribute("Visible", false)
+			selector:SetAttribute("Visible", true)
 		else
 			warn(msg)
 		end
@@ -179,6 +187,7 @@ function ShelterCustomize.render()
 			end
 			shelterModel = shelterModelFolder:WaitForChild(tostring(shelterStyle)):Clone()
 			shelterModel.Name = "ClonedShelter"
+			shelterModel:ScaleTo(0.75)
 			shelterModel.Parent = workspace
 			shelterModel:PivotTo(workspace:WaitForChild("Spintable").PrimaryPart.CFrame)
 		end
@@ -205,7 +214,9 @@ function ShelterCustomize.render()
 end
 
 function ShelterCustomize.destroy()
-	ShelterCustomize.frame.Visible = true
+	ShelterCustomize.frame.Visible = false
+	shelterModel:Destroy()
+	shelterModel = nil
 	currentTrove:Clean()
 end
 

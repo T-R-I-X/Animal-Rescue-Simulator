@@ -1,3 +1,6 @@
+-- // Gui MenuScreen.luau
+--- // Handles the menu screen
+
 local Menu = {}
 
 local Players = game:GetService("Players")
@@ -20,10 +23,10 @@ local container1 = hudGui:WaitForChild("Container")
 local container2 = shelterGui:WaitForChild("Container")
 
 local menuFrame = container1:WaitForChild("Menu")
-local selector = container2:WaitForChild("LocationSelector")
+--local selector = container2:WaitForChild("LocationSelector") TODO add selector
 local customize = container2:WaitForChild("Customize")
 
-local gameRoot = workspace:WaitForChild("Root")
+local gameRoot = workspace.PrimaryPart
 
 local menuTrove = Trove.new()
 
@@ -34,15 +37,14 @@ function Menu.render()
 	local loadBtn = menuFrame:WaitForChild("Load")
 	local settingBtn = menuFrame:WaitForChild("Settings")
 
-	Datastore.waitFor()
-
-	if Datastore.Replica.Data.initialized == false then
+	local replica = Datastore.get()
+	if replica.Data.initialized == false then
 		loadBtn.BackgroundColor3 = Color3.fromRGB(82, 82, 82)
 	else
 		loadBtn.BackgroundColor3 = Color3.fromRGB(61, 181, 255)
 	end
 
-	menuTrove:Add(Datastore.Replica:ListenToChange("initialized", function(newValue)
+	menuTrove:Add(replica:OnChange({ "initialized" }, function(newValue)
 		if newValue == true then
 			loadBtn.BackgroundColor3 = Color3.fromRGB(61, 181, 255)
 		else
@@ -96,9 +98,9 @@ function Menu.render()
 	end))
 
 	menuTrove:Add(loadBtn.Activated:Connect(function()
-		if Datastore.Replica.Data.initialized == true then
-		else
-		end
+		--if Datastore.Replica.Data.initialized == true then
+		--else
+		--end
 	end))
 
 	menuTrove:Add(settingBtn.Activated:Connect(function() end))

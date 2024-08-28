@@ -57,7 +57,7 @@ local TemplateData: Main = {
 		sfxVolume = 0.5,
 		musicVolume = 0.45,
 	},
-	initialized = false
+	initialized = false,
 }
 
 return TemplateData

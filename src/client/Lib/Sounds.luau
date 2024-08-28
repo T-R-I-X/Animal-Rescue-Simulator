@@ -1,4 +1,3 @@
---!strict
 -- // Lib GuiSounds.luau
 --- // Handles all gui sounds
 
@@ -12,7 +11,7 @@ Sounds.Groups = {}
 Sounds.CachedSounds = {}
 
 function Sounds.init()
-    Sounds._initted = true
+	Sounds._initted = true
 
 	for _, soundGroup in SoundService:GetChildren() do
 		if soundGroup:IsA("SoundGroup") then
@@ -34,10 +33,9 @@ function Sounds.init()
 	--	musicVolume: number,
 	--},
 
-    Datastore.waitFor()
-	local replica = Datastore.Replica
+	local replica = Datastore.get()
 
-	replica:ListenToChange("settings", function(newValue)
+	replica:OnChange("settings", function(newValue)
 		--Sounds.Groups.SFX.Enabled = newValue.settings.sfxEnabled
 		Sounds.Groups.SFX.Volume = newValue.settings.sfxVolume
 
@@ -69,7 +67,7 @@ function Sounds.stop(soundName: string)
 end
 
 if Sounds._initted == false then
-    Sounds.init()
+	Sounds.init()
 end
 
 return Sounds

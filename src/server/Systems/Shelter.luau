@@ -6,12 +6,11 @@ local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local Net = require(ReplicatedStorage.Packages.Net)
-local Concur = require(ReplicatedStorage.Packages.Concur)
-local Log = require(ReplicatedStorage.Shared.Logging).new("Shelter")
 local WaitFor = require(ReplicatedStorage.Packages.WaitFor)
 local Datastore = require(script.Parent.Parent.Lib.Datastore)
 
-local shelterFolder = workspace.Shelters
+local shelterFolder = ReplicatedStorage.Assets.ShelterModels
+local spotFolder = workspace.Shelters
 
 local PlayerOwned = {}
 PlayerOwned.Shelters = {}
@@ -36,12 +35,11 @@ do
 
 				local result = Datastore.get(player, 25)
 				if not result then
-					return false, "game data not found."
+					return false, "game data NOT FOUND."
 				end
 
 				local data = result.get()
-				print(data.initialized)
-				assert(data.initialized == false, "facility already initialized, wipe player data first!") -- check if they are initialized TODO add gamepass check for customization
+				assert(data.initialized == false, "FACILITY already INITIALIZED, WIPE player data FIRST!") -- check if they are initialized TODO add gamepass check for customization
 
 				local newTable = data.facility
 				newTable.mainColor = primaryColor
@@ -61,9 +59,9 @@ do
 			local success, result = Shelter.LoadShelter(player, shelter)
 
 			if success then
-				Log:Log("loaded shelter for " .. player.Name)
+				print("LOADED shelter for " .. player.Name)
 			else
-				Log:Debug("error shelter: " .. player.Name .. "( @" .. player.DisplayName .. " ) " .. result)
+				warn("ERROR shelter: " .. player.Name .. "( @" .. player.DisplayName .. " ) " .. result)
 			end
 
 			return success, result
@@ -71,16 +69,20 @@ do
 	end
 
 	function Shelter.LoadShelter(player: Player, spot: number): (boolean, string | nil)
-		local result = Datastore.get(player, 25)
+		local result = Datastore.get(player)
 		if not result then
-			return false, "game data not found."
+			return false, "game data NOT FOUND."
 		end
 
 		result = result.get()
+		if result.initialized == nil then
+			Shelter.Remotes.PromptInitialize:FireClient(player)
+			return false, "shelter hasn't been initialized."
+		end
 
-		local shelterModel = shelterFolder:FindFirstChild(tostring(spot))
-		if not shelterModel then
-			return false, "shelter not found in workspace."
+		local spotModel = spotFolder:FindFirstChild(tostring(spot))
+		if not spotModel then
+			return false, "spot NOT FOUND in workspace."
 		end
 
 		--facility: {
@@ -96,31 +98,60 @@ do
 		--	mainColor: Color3,
 		--	secondaryColor: Color3,
 		--},
-
 		local facilityData = result.facility
 
-		if result.initialized == nil then
-			Shelter.Remotes.PromptInitialize:FireClient(player)
-			return false, "shelter hasn't been initialized."
+		local shelterModel = shelterFolder:FindFirstChild(tostring(facilityData.typeof))
+		if not shelterModel then
+			return false, "shelter NOT FOUND in shelter models."
 		end
 
-		if shelterModel:GetAttribute("Owner") == nil then
-			shelterModel:SetAttribute("Owner", player.UserId)
-			PlayerOwned.Shelters[player] = shelterModel
+		shelterModel = shelterModel:Clone()
+		shelterModel.Name = `{player.Name}'s Shelter`
+		shelterModel:ScaleTo(1)
+		shelterModel:PivotTo(spotModel.PrimaryPart.CFrame * CFrame.new(0, -1.5, 0))
 
-			Shelter.Remotes.ShelterLoaded:FireClient(player)
+		-- Sign setup
+		local signModel = shelterModel.Sign
+		local surfaceGui = signModel.PrimaryPart.SurfaceGui
+		local billboardGui = signModel.PrimaryPart.BillboardGui
 
-			player.Character.PrimaryPart:PivotTo(shelterModel.PrimaryPart.CFrame) -- shelterModel.PrimaryPart.CFrame
+		local content, isReady = Players:GetUserThumbnailAsync(player.UserId, Enum.ThumbnailType.HeadShot, Enum.ThumbnailSize.Size420x420)
 
-			return true, "shelter was loaded."
+		surfaceGui.Frame.TextLabel.Text = `@{player.Name}`
+		if content and isReady then
+			billboardGui.Frame.Default.Visible = false
+			billboardGui.Frame.ImageLabel.Visible = true
+			billboardGui.Frame.ImageLabel.Image = content
+		end
+
+		for _, primaryPart: BasePart in ipairs(shelterModel:WaitForChild("PrimaryColors"):GetChildren()) do
+			primaryPart.Color = facilityData.mainColor
+		end
+
+		for _, secondaryPart: BasePart in ipairs(shelterModel:WaitForChild("SecondaryColors"):GetChildren()) do
+			secondaryPart.Color = facilityData.secondaryColor
+		end
+
+		if spotModel:GetAttribute("Owner") == nil then
+			spotModel:SetAttribute("Owner", player.UserId)
+			shelterModel.Parent = workspace
+
+			PlayerOwned.Shelters[player] = {
+				model = shelterModel,
+				spot = spotModel,
+			}
+			player.Character.PrimaryPart:PivotTo(shelterModel.Spawn.CFrame) -- shelterModel.PrimaryPart.CFrame
+
+			return true, "shelter was LOADED."
 		else
-			return false, "couldn't select this shelter."
+			return false, "couldn't SELECT this shelter."
 		end
 	end
 
 	function Shelter.PlayerLeft(player: Player): nil
 		if PlayerOwned.Shelters[player] then
-			PlayerOwned.Shelters[player]:SetAttribute("Owner", nil)
+			PlayerOwned.Shelters[player].model:Destroy()
+			PlayerOwned.Shelters[player].spot:SetAttribute("Owner", nil)
 			PlayerOwned.Shelters[player] = nil
 		end
 	end

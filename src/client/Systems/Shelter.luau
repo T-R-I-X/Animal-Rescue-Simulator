@@ -1,4 +1,3 @@
---!strict
 -- // Systems Shelter.luau
 --- // Handles animal shelters on client
 

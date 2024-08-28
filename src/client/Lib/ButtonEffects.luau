@@ -1,4 +1,3 @@
---!strict
 -- // Lib ButtonEffects.luau
 --- // Handles button effects
 

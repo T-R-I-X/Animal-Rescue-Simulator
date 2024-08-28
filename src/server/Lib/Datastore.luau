@@ -7,19 +7,17 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local AnalyticsService = game:GetService("AnalyticsService")
 
 local ProfileService = require(ReplicatedStorage.Packages.ProfileService)
-local Replica = require(ReplicatedStorage.Shared.Replica)
+local Replica = require(ReplicatedStorage.Packages.Replica)
 local WaitFor = require(ReplicatedStorage.Packages.WaitFor)
 local TemplateData = require(script.Parent.Parent._Metadata.TemplateData)
-
-local SharedReplicaTypes = require(ReplicatedStorage.Shared.Replica.SharedTypes)
 
 export type Profile = ProfileService.Profile<TemplateData.Main, any>
 export type CacheProfile = {
 	profile: Profile,
-	replica: SharedReplicaTypes.Replica,
+	replica: Replica.Replica<{ ownerId: number }, TemplateData.Main>,
 	update: (key: string, value: any) -> TemplateData.Main,
 	get: () -> TemplateData.Main,
-	wipe: () -> nil
+	wipe: () -> nil,
 }
 export type ProfileTable = {
 	[Player]: CacheProfile,
@@ -31,20 +29,23 @@ Datastore.mock = true
 Datastore._store = ProfileService.GetProfileStore("Game", TemplateData)
 
 local Profiles: ProfileTable = {}
+local dataToken = Replica:RegisterToken("GameData")
 
 local function update(
 	profile: Profile,
-	replica: SharedReplicaTypes.Replica,
+	replica: Replica.Replica<{ ownerId: number }, TemplateData.Main>,
 	key: string,
 	value: number | string | { [any]: any } | { any } | Color3
 ): TemplateData.Main
-	assert(profile and (key and typeof(key) == "string"), "Missing required arguments")
+	assert(profile, "PARAM profile did not exist.")
+	assert(key and typeof(key) == "string", "PARAM key is wrong.")
+
 	local doesKeyExist = profile.Data[key]
-	if doesKeyExist then
+	if doesKeyExist ~= nil then
 		profile.Data[key] = value
 		replica:SetValue(key, value)
 	else
-		error(`Key doesn't exist in <{profile.UserIds[1]}> KEY {key}`)
+		error(`KEY {key} doesn't exist`)
 	end
 end
 
@@ -79,20 +80,23 @@ end
 local function set(player: Player, profile: Profile): nil
 	local cached = Profiles[player]
 	if cached then
-        error(`{player.Name} <{player.UserId}> is already cached in profiles`)
-    end
+		error(`{player.Name} <{player.UserId}> is already cached in profiles`)
+	end
 
-	local newReplica = Replica.new({
-		ClassToken = `Data_{player.UserId}`,
-    	Data = profile.Data,
-    	Replication = { player },
+	local newReplica = Replica.Service:NewReplica({
+		Token = dataToken,
+		Tags = {
+			ownerId = player.UserId,
+		},
+		Data = profile.Data,
+		Filter = "All",
 	})
 
 	Profiles[player] = {
 		profile = profile,
 		replica = newReplica,
 		update = function(key: string, value: any): TemplateData.Main
-			return update(profile, key, value)
+			return update(profile, newReplica, key, value)
 		end,
 		get = function(): TemplateData.Main
 			return profile.Data
@@ -119,6 +123,7 @@ function Datastore.load(player: Player): CacheProfile | nil
 		profile:Reconcile()
 		profile:ListenToRelease(function(placeId, jobId)
 			if Profiles[player] then
+				Profiles[player].replica:Destroy()
 				Profiles[player] = nil
 			end
 			player:Kick(`profile released <{placeId}> <{jobId}>`)
@@ -126,7 +131,7 @@ function Datastore.load(player: Player): CacheProfile | nil
 
 		if player:IsDescendantOf(Players) then
 			set(player, profile)
-            return Profiles[player]
+			return Profiles[player]
 		else
 			profile:Release()
 		end
