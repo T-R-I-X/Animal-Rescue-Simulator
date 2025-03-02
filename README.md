@@ -1,3 +1,5 @@
+### This is shut down feel free to take the concept.
+
 # *Animal Rescue Simulator*
 ## Concept
         Players run an animal rescue center where they find, rescue, and care for various animals. The goal is to explore different environments to find animals in need, bring them back to the center, nurse them back to health, and release them back into the wild. Players can build and upgrade their facilities to accommodate more animals and provide better care.
